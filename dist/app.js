@@ -15,10 +15,11 @@ function setMapSummary(){
 }
 function drawMapMarkers(){
   if(!naverMap)return;clearMapMarkers();
-  const groups=cluster(mapPoints,naverMap.getZoom());
+  const zoom=naverMap.getZoom(),showNames=zoom>=14,groups=cluster(mapPoints,zoom);
   for(const group of groups){const count=group.members.length,point=new naver.maps.LatLng(group.lat,group.lng),r=group.members[0].row;
-    const title=count>1?'장례식장 '+count+'곳, 클릭하여 확대':r['시설명'];
-    const marker=new naver.maps.Marker({map:naverMap,position:point,title,icon:{content:count>1?`<button type="button" class="map-cluster" aria-label="${escapeHTML(title)}">${count}</button>`:`<button type="button" class="map-pin ${selected===r.id?'selected':''}" aria-label="${escapeHTML(title)}"><span aria-hidden="true">●</span></button>`,size:new naver.maps.Size(count>1?42:28,count>1?42:28),anchor:new naver.maps.Point(count>1?21:14,count>1?21:14)}});
+    const name=r['시설명']+(count>1?' 외 '+(count-1)+'곳':''),title=showNames?name:count>1?'장례식장 '+count+'곳, 클릭하여 확대':r['시설명'];
+    const content=showNames?`<button type="button" class="map-name-label ${group.members.some(p=>p.id===selected)?'selected':''}" aria-label="${escapeHTML(title)}" title="${escapeHTML(title)}"><span>${escapeHTML(name)}</span></button>`:count>1?`<button type="button" class="map-cluster" aria-label="${escapeHTML(title)}">${count}</button>`:`<button type="button" class="map-pin ${selected===r.id?'selected':''}" aria-label="${escapeHTML(title)}"><span aria-hidden="true">●</span></button>`;
+    const marker=new naver.maps.Marker({map:naverMap,position:point,title,zIndex:group.members.some(p=>p.id===selected)?1000:showNames?100:0,icon:{content,size:new naver.maps.Size(showNames?180:count>1?42:28,showNames?50:count>1?42:28),anchor:new naver.maps.Point(showNames?90:count>1?21:14,showNames?50:count>1?21:14)}});
     naver.maps.Event.addListener(marker,'click',()=>{
       if(count===1){choose(r.id);return}
       if(naverMap.getZoom()>=17){mapInfo.setContent('<div class="map-place-list"><b>이 위치의 장례식장 '+count+'곳</b>'+group.members.map(p=>`<button type="button" data-map-id="${p.id}">${escapeHTML(p.row['시설명'])}</button>`).join('')+'</div>');mapInfo.open(naverMap,marker);return}
@@ -43,7 +44,6 @@ function focusFacility(r){
   if(!naverMap)return;const p=positions[r['주소']];mapInfo.close();
   if(!window.MaeumMapModel.validPoint(p)){$('mapSummary').textContent='이 시설의 위치를 확인하지 못했습니다. 큰 지도에서 주소를 검색해 주세요.';return}
   showMap();naverMap.setCenter(new naver.maps.LatLng(p.lat,p.lng));naverMap.setZoom(17);scheduleMapDraw();
-  mapInfo.setContent('<div class="map-place-name">'+escapeHTML(r['시설명'])+'</div>');mapInfo.open(naverMap,new naver.maps.LatLng(p.lat,p.lng));
 }
 window.navermap_authFailure=()=>{naverMap=null;mapUnavailable('사이트 내 지도를 연결하지 못했습니다. 네이버 지도에서 확인해 주세요.')};
 window.initNaverMap=()=>setTimeout(()=>{if(!window.naver?.maps?.Map){if(++mapReadyAttempts<100){window.initNaverMap();return}window.navermap_authFailure();return}try{
